@@ -1,5 +1,5 @@
 ---
-title: "Coursework 1 - By Jeri Dawit"
+title: "Analysing and Predicting Red Wine Quality - By Jeri"
 output:
   word_document: default
   pdf_document: default
