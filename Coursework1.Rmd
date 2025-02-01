@@ -1,0 +1,604 @@
+---
+title: "Coursework 1 - By Jeri Dawit"
+output:
+  word_document: default
+  pdf_document: default
+date: "2023-11-30"
+---
+#1. What is the problem we plan to tackle and the purpose of analysis?
+
+This document presents a detailed analysis of the red wine dataset with the aim of predicting wine quality based on various physicochemical attributes. The dataset includes information on key factors such as volatile acidity, chlorides, total sulfur dioxide, pH, sulphates, and alcohol content.
+
+My analysis follows a structured approach, starting with the data exploration and preprocessing. I will then  follow this by constructing the linear and polynomial regression models. Additionally, a k-Nearest Neighbors (k-NN) model is optimized to find the best hyperparameter 'k'. The performance of each model will then be evaluated using the Mean Squared Error (MSE) on both the validation and test sets.
+
+My report will cover the following key steps:
+1. **Data Exploration and Preprocessing:** Checking for missing values, handling duplicates, and exploring the relationships between variables.
+2. **Model Building:** Constructing linear regression models (M1), polynomial regression models (M2, M3, M4), and optimizing a k-NN model (M5).
+3. **Model Evaluation:** Comparing the performance of different models on the test set using MSE.
+4. **Final Model Selection:** Choosing the best-performing model (Mb) for further evaluation.
+
+Throughout my analysis, I will provide visualizations and insightful commentary to give a clear understanding of the relationships between predictor variables and wine quality. My document will then conclude with a comprehensive evaluation of the selected model on the test set.
+
+My analysis aims to provide valuable insights into the factors influencing wine quality and to develop a predictive model for practical applications in the wine industry.
+
+---
+## 1.1 Import and view Dataset
+```{r}
+#check working directory
+getwd()
+#import csv file for red wine
+redwine <- read.csv("winequality-red.csv", header = TRUE)
+# I would like to display the structure of the data
+str(redwine)
+#to correctly read the semicolon-separated values, I will add sep parameter and use the semi colon since that is what would separate the data variable header columns and values.
+redwine <- read.csv("winequality-red.csv", header = TRUE, sep = ";")
+```
+
+Before splitting data I will address any missing values and duplicate records.
+
+##1.2 Checking the summary, duplicate and missing values in Dataframe 
+
+```{r}
+#summary 
+summary(redwine)
+# I will check for duplicates in the entire data frame
+duplicates <- redwine[duplicated(redwine), ]
+# I will now display the dimensions of the duplicates in Data frame
+dim(duplicates)
+#I will now check the missing (NA) values in the data set
+sum(is.na(redwine))
+```
+Within the red wine dataset, there are 240 rows that display duplication. While the existence of duplicate rows has the potential to introduce biases in our analytical processes, it seems more likely in this case that various wine tasters have assessed the same wine and assigned comparable ratings. As a result, I have chosen to keep all observations.This could enrich my analysis with additional meaningful insights.
+
+# 2. Splitting the dataset
+
+Randomly split the dataset in 3 equal parts: the training set, the validation set and the test
+set:
+
+```{r}
+set.seed(123)  # This is setting seed for reproducibility
+
+# I will generate random indices for splitting
+indices <- sample(1:nrow(redwine))
+
+# I will calculate the size for each set
+num_rows <- nrow(redwine)
+train_size <- round(0.6 * num_rows)
+val_size <- round(0.2 * num_rows)
+
+# Creating the training set
+train_set <- redwine[indices[1:train_size], ]
+
+# Creating the validation set
+val_set <- redwine[indices[(train_size + 1):(train_size + val_size)], ]
+
+# Creating the test set
+test_set <- redwine[indices[(train_size + val_size + 1):num_rows], ]
+
+# I will check the sizes of the sets
+cat("Training set size:", nrow(train_set), "\n")
+cat("Validation set size:", nrow(val_set), "\n")
+cat("Test set size:", nrow(test_set), "\n")
+```
+
+
+# 3. EDA on training set
+
+##3.1 Loading libraries and checking training data.
+
+I will load the necessary libraries and examine the data summary. The dataset comprises 11 physicochemical attributes and it's possible that some of them are correlated. To explore this, I'll assess the strength of the correlation between quality and other variables by creating a correlation matrix plot.
+
+```{r}
+# I will load necessary libraries, including ggplot2 for plotting and corrplot for visualizing correlations.
+library(ggplot2)
+library(corrplot)
+
+# I will look at the first few rows of the training data
+head(train_set)
+
+# I will now check the structure and summary of the training data
+str(train_set)
+summary(train_set)
+
+# Computing the variable correlations
+cor_matrix <- cor(train_set)
+
+# I will now plot the correlation matrix
+corrplot(cor_matrix, method = "circle", type = "upper", tl.col = "black")
+```
+###Correlation among variables
+Summary and insights based on the correlation matrix:
+
+Fixed Acidity: Positively correlated with citric acid, density, and alcohol.
+Negatively correlated with pH. Wines with higher fixed acidity tend to have more citric acid, higher density, and more alcohol. They also tend to be less acidic (higher pH).
+
+Volatile Acidity: Negatively correlated with fixed acidity and citric acid. Wines with higher volatile acidity are associated with lower fixed acidity and citric acid, suggesting a more pronounced acidic taste.
+
+Citric Acid: Positively correlated with fixed acidity and density. Negatively correlated with volatile acidity and pH. Wines with higher citric acid content are likely to have higher fixed acidity and density but lower volatile acidity and pH.
+
+Residual Sugar: No strong correlations with other variables. Residual sugar doesn't show strong associations with the other measured attributes.
+
+Chlorides: Positively correlated with density. Negatively correlated with sulphates Wines with higher chloride content tend to have higher density and lower sulphate content.
+
+Free Sulfur Dioxide: Positively correlated with total sulfur dioxide.
+Negatively correlated with pH. Wines with higher free sulfur dioxide are associated with higher total sulfur dioxide and lower pH.
+
+Total Sulfur Dioxide: Positively correlated with free sulfur dioxide.
+Negatively correlated with alcohol. Wines with higher total sulfur dioxide tend to have higher free sulfur dioxide but lower alcohol content.
+
+Density: Positively correlated with fixed acidity and citric acid.
+Negatively correlated with alcohol. Wines with higher density are associated with higher fixed acidity and citric acid but lower alcohol content.
+
+pH: Negatively correlated with fixed acidity and citric acid.
+Positively correlated with free sulfur dioxide. Wines with lower pH tend to have higher fixed acidity and citric acid but higher free sulfur dioxide.
+
+Sulphates: Positively correlated with chlorides and alcohol.
+Insight: Wines with higher sulphate content tend to have higher chlorides and alcohol content.
+
+Alcohol: Positively correlated with density. Negatively correlated with volatile acidity.Wines with higher alcohol content are associated with higher density and lower volatile acidity.
+
+Quality: Positively correlated with alcohol. Negatively correlated with volatile acidity. Higher quality wines are associated with higher alcohol content and lower volatile acidity. 
+
+##3.2 Wine Quality Distribution and Variables in the dataset 
+
+Variables in the dataset include both input and output factors. The input variables are derived from physicochemical tests and include:
+
+Fixed acidity 
+Volatile acidity
+Citric acid 
+Residual sugar
+Chlorides
+Free sulfur dioxide 
+Total sulfur dioxide
+Density
+pH
+Sulphates 
+Alcohol (% by volume)
+
+The output variable, based on sensory data, is quality with a score between 0 (bad) and 10 (excellent). The "X" column represents row numbers. It's important to note that quality is a discrete variable, while all other input variables are continuous.
+
+### Wine Quality Distribution
+The aim of this analysis is to focus on the quality of the wine. The quality is the variable I aim to predict using other attributes. Now, I will look into a summary of the wine quality through creating a table and visualising it through a histogram. 
+
+```{r}
+# Creating the table for wine quality
+print(" Count of wines for a specific red wine rating.:")
+table(redwine$quality)
+#I will now create the histogram for wine quality
+theme_set(theme_minimal())
+ggplot(redwine,aes(quality)) + geom_histogram(stat="count") +
+   xlab("Quality of red wines") + ylab("Number of red wines")
+```
+##Classifying the Quality of Red Wine
+The quality distribution of red wines exhibits a normal distribution, predominantly falling within the rating range of 5 to 7. Wines with a rating below 4 or above 7 are scarce, representing "very poor" and "very good" respectively. The objective is to predict wine quality using 11 input variables. Notably, wines with ratings 8 and 9 are relatively rare and are considered the highest quality. I will aim to explore the distinctive physiochemical properties that contribute to the superior taste of these exceptional wines compared to the rest of the dataset, which comprises wines rated below 8. 
+
+To facilitate this analysis, I will create a subset where wines rated 8 or above are categorized as "Good," while those rated 7 or below are labeled as "Not good."
+```{r}
+#I will now load the library for glimpsing train_set
+library(dplyr)
+train_set$rating   <- ifelse (as.integer(train_set$quality) > 7, 1, 0)
+glimpse(train_set)
+table(train_set$rating)
+```
+## 3.3 Visualisations of attributes vs the quality of wine
+Prior to making predictions, I will make visualisations to explore the remaining variables to identify any patterns that might explain the quality of red wines. For this exploration, scatterplots prove to be the most useful and fitting type of plot.
+
+I will use lapply to apply an anonymous function to each column (variable) of the data frame train_set. This essentially iterates through the columns using the same operation. The anonymous function creates a scatterplot using ggplot2 for each variable against the "quality" variable and adds it to a list. 
+```{r}
+#I will load the library for the scatterplots
+
+library("grid")
+
+# I will now create scatterplots for each variable against quality
+scatterplots <- lapply(names(train_set[, -12]), function(var) {
+  ggplot(train_set, aes_string(x = var, y = "quality")) +
+    geom_point() +
+    labs(title = paste("plot:", var, "vs. quality"),
+         x = var, y = "Quality")
+})
+
+# I will combine all scatterplots into a single plot with a facet_wrap
+multiplot <- function(..., plotlist = NULL, file, cols = 1, layout = NULL) {
+  require(grid)
+
+  # I will make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If the layout is NULL, I will use 'cols' to determine the layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                     ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+  if (numPlots == 1) {
+    print(plots[[1]])
+
+  } else {
+    # Setting up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # I will make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # I will now get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+
+# Display the combined scatterplots
+multiplot(plotlist = scatterplots, cols = 3)
+```
+To see it clearly I would like to add a line fitting a linear model to the data points to better understand the relationship between the variables. I would like to see the trend  of the relationship between the independent and dependent variables.
+
+```{r}
+# I will load more libraries necessary for this
+library(tidyr)
+library(gridExtra)
+
+# I will create a list of variables for the scatterplots
+variables <- names(train_set)[-12]
+
+# I will also create an empty list to store scatterplots
+scatterplots <- lapply(variables, function(var) {
+  ggplot(train_set, aes_string(x = var, y = "quality")) +
+    geom_point() +
+    geom_smooth(method = "lm", formula = y ~ poly(x, 1), se = FALSE) +
+    labs(title = paste("plot:", var, "vs. quality"),
+         x = var, y = "Quality")
+})
+
+# Display the combined scatterplots
+multiplot(plotlist = scatterplots, cols = 3)
+
+```
+
+
+###Findings from the scatterplots
+
+It was difficult to find a certain pattern at first, but I added the lines in the second group of graphs for better visualisation. We see good quality wines have lower volatile.acidity and fixed acidity. We can also see chlorides, residual sugar and free/total sulfur dioxide are clearly lower for good quality wines. Furthermore, these graphs indicate that better wines also have a higher ph and alcohol content. More specifically, it seems a ph between 3-3.5 improves the quality of wine.
+
+#4. Linear Regression Model
+
+I will use variable selection on the training set using linear regression to predict the quality of wines. I will improve the model by removing the insignificant variables and will also check the R-Squared value for improvements. I will use the backward selection algorithm from class to find a set of important variables that can contribute to the model. The remaining (non-important) variables from the training, validation and test sets will be dropped.
+```{r}
+# dependent variable is 'quality' and others are independent variables
+
+# Extracting the dependent variable
+y <- train_set$quality
+
+# Extracting the independent variables
+X <- train_set[, c("fixed.acidity", "volatile.acidity", "citric.acid", 
+              "residual.sugar", "chlorides", "free.sulfur.dioxide", 
+              "total.sulfur.dioxide", "density", "pH", "sulphates", 
+              "alcohol")]
+
+# i will create the function to perform backward elimination
+backwardElimination <- function(X, y, significanceLevel = 0.05) {
+  n <- nrow(X)
+  allVars <- colnames(X)
+  
+  for (i in seq(length(allVars))) {
+    formula <- as.formula(paste("y ~", paste(allVars, collapse = " + ")))
+    model <- lm(formula, data = train_set)
+    pValues <- summary(model)$coefficients[, 4]
+    maxPValue <- max(pValues)
+    
+    if (maxPValue > significanceLevel) {
+      removeVar <- names(pValues)[which(pValues == maxPValue)]
+      allVars <- allVars[!(allVars %in% removeVar)]
+    } else {
+      break
+    }
+  }
+  
+  return(allVars)
+}
+
+# Performing the backward elimination
+selectedVars <- backwardElimination(X, y)
+
+# I will now filter the dataset "train_set with selected variables
+train_set_selected <- train_set[, c("quality", selectedVars)]
+
+# I created the 'train_set_selected' to be a seperate dataframe containing only the selected variables for further analysis.
+```
+###Drop variables and keep selected variables in test_set and validation_set
+```{r}
+# I will now replace the variables in the test and validation sets with the selected variables
+
+# Creating the function to filter the datasets "val_Set" and test_set"  based on selected variables
+filterVariables <- function(dataset, selectedVars) {
+  dataset_filtered <- dataset[, c("quality", selectedVars)]
+  return(dataset_filtered)
+}
+
+# Filtering the test set
+test_set_selected <- filterVariables(test_set, selectedVars)
+
+# Filtering the validation set
+val_set_selected <- filterVariables(val_set, selectedVars)
+
+# Now, test_set_selected and val_set_selected also contain only the selected variables for further analysis.
+```
+
+##4.1 Build the linear regression model on the training set. 
+
+I will create the linear regression model, M1, to predict wine quality based on several key chemical properties.
+```{r}
+# Creating the linear regression model and calling it M1.
+M1 <- lm(quality ~ volatile.acidity + chlorides + total.sulfur.dioxide + pH + sulphates + alcohol, data = train_set_selected)
+
+# Displaying the summary of the model
+summary(M1)
+```
+The model's intercept, representing the expected wine quality when all predictors are zero, is 4.22. Notably, volatile acidity and chlorides show negative coefficients, implying that increases in these variables are associated with a decrease in wine quality, with approximate decreases of 0.88 and 2.08, respectively. On the other hand, the higher levels of sulphates and alcohol are linked to increased wine quality, with sulphates contributing approximately 0.87 and alcohol about 0.31 per unit increase. Total sulfur dioxide and pH also play roles, with higher sulfur dioxide and lower pH associated with reduced quality. This confirms the scatterplot graphs in the EDA above. The coefficients are also statistically significant, as indicated by the low p-values. The model, with an R-squared of 35.59%, explains a notable portion of the variability in wine quality. The F-statistic tests the overall significance of the model. With a very low p-value (< 0.001), the model is considered overall significant. In summary, the linear regression model M1 provides valuable insights into the relationships between chemical components and wine quality.
+
+##4.2 Building 3 polynomial regression models on the training set.
+
+Using visual insights of non-linear patterns that I have spotted in the scatterplots, I 
+built 3 polynomial regression models on the training set. I called these models M2, M3, M4. 
+
+```{r}
+# Polynomial regression models
+M2 <- lm(quality ~ poly(volatile.acidity, 2) + poly(chlorides, 2) + poly(total.sulfur.dioxide, 2) + poly(pH, 2) + poly(sulphates, 2) + poly(alcohol, 2), data = train_set_selected)
+
+M3 <- lm(quality ~ poly(volatile.acidity, 3) + poly(chlorides, 3) + poly(total.sulfur.dioxide, 3) + poly(pH, 3) + poly(sulphates, 3) + poly(alcohol, 3), data = train_set_selected)
+
+M4 <- lm(quality ~ poly(volatile.acidity, 4) + poly(chlorides, 4) + poly(total.sulfur.dioxide, 4) + poly(pH, 4) + poly(sulphates, 4) + poly(alcohol, 4), data = train_set_selected)
+```
+### Visualisations of the polynomial regression models
+
+```{r}
+# No need to load necessary libraries as library tidyr, dplyr, ggplot2, gridExtra have been loaded in previously
+
+# Defining the gatherpairs function
+gatherpairs <- function(data, ..., 
+                        xkey = '.xkey', xvalue = '.xvalue',
+                        ykey = '.ykey', yvalue = '.yvalue',
+                        na.rm = FALSE, convert = FALSE, factor_key = FALSE) {
+  vars <- quos(...)
+  xkey <- enquo(xkey)
+  xvalue <- enquo(xvalue)
+  ykey <- enquo(ykey)
+  yvalue <- enquo(yvalue)
+
+  data %>% {
+    cbind(gather(., key = !!xkey, value = !!xvalue, !!!vars,
+                 na.rm = na.rm, convert = convert, factor_key = factor_key),
+          select(., !!!vars)) 
+  } %>% gather(., key = !!ykey, value = !!yvalue, !!!vars,
+               na.rm = na.rm, convert = convert, factor_key = factor_key)
+}
+
+# I will create a list of variables and degrees for polynomial regression
+variables <- c("volatile.acidity", "chlorides", "total.sulfur.dioxide", "sulphates", "alcohol")
+degrees <- c(2, 3, 4)
+
+# Creating an empty list to store plots
+plots <- list()
+
+# Looping through each variable and degree to create the plots
+for (variable in variables) {
+  for (degree in degrees) {
+    # Create scatterplot with polynomial regression
+    plot <- train_set_selected %>% 
+      gatherpairs(!!sym(variable)) %>%
+      filter(!is.na(.xvalue) & !is.na(.yvalue)) %>%  # Filter out NA values
+      group_by(quality) %>%
+      filter(n() > 10) %>%  # Filter out groups with fewer than 10 observations
+      ggplot(aes(x = .xvalue, y = .yvalue, color = as.factor(quality))) +
+      geom_point() +
+      geom_smooth(method = 'lm', formula = y ~ poly(x, degree), se = FALSE) +
+      labs(title = paste("Scatterplot for M", degree, ":", variable)) +
+      scale_color_brewer(type = 'qual')
+
+    plots[[length(plots) + 1]] <- plot
+  }
+}
+
+# I will arrange the plots in a grid for better visualisation
+grid.arrange(grobs = plots, ncol = 3)
+
+```
+It was difficult to  visually differentiate the model trends due to overlapping data points. 
+Therefore, I will use cross-validation to further test this. MSE will help to evaluate how well each model fits the data and will allow meaningful comparisons to occur even when visual differences are less clear.
+
+## Cross Validation
+
+According to the statistics class in week 10, the cross-validation method for smaller datasets is good to use for smaller datasets, hence why I added this step. I divided it into 3 folds. I will define the train_and_evaluate_lm_cv function to train and evaluate the linear regression models using cross-validation.
+I will also use the train_and_evaluate_knn_cv function to train and evaluate k-NN models using cross-validation.
+Cross-validated Mean Squared Error (MSE) will be calculated for linear regression, to provide a quantitative measure of its performance.
+```{r}
+# Loading the lattice package
+library(lattice)
+library(caret)
+
+# Define the training control with 3-fold cross-validation
+ctrl <- trainControl(method = "cv", number = 3, verboseIter = TRUE)
+
+# Function to train and evaluate linear regression model using cross-validation
+train_and_evaluate_lm_cv <- function(formula, data, ctrl) {
+  model <- train(formula, data = data, method = "lm", trControl = ctrl)
+  return(model)
+}
+
+# Defining the formula for linear regression
+formula_lm <- quality ~ volatile.acidity + chlorides + total.sulfur.dioxide + pH + sulphates + alcohol
+
+# Training the linear regression model with cross-validation
+lm_model_cv <- train_and_evaluate_lm_cv(formula_lm, train_set_selected, ctrl)
+
+# Displaying the summary of the cross-validated linear regression model
+print(lm_model_cv)
+
+# Function to train and evaluate k-Nearest Neighbors model using cross-validation
+train_and_evaluate_knn_cv <- function(data, ctrl) {
+  model <- train(x = data[, c("volatile.acidity", "chlorides", "total.sulfur.dioxide", "pH", "sulphates", "alcohol")],
+                 y = data$quality,
+                 method = "knn",
+                 trControl = ctrl)
+  return(model)
+}
+
+# Train the k-Nearest Neighbors model with cross-validation
+knn_model_cv <- train_and_evaluate_knn_cv(train_set_selected, ctrl)
+
+# Display the summary of the cross-validated k-Nearest Neighbors model
+print(knn_model_cv)
+
+# Function to calculate Mean Squared Error using cross-validated models
+calculate_cv_mse <- function(model, data) {
+  predictions <- predict(model, newdata = data)
+  mse <- mean((predictions - data$quality)^2)
+  return(mse)
+}
+
+# Calculating cross-validated Mean Squared Error for linear regression
+lm_cv_mse <- calculate_cv_mse(lm_model_cv, train_set_selected)
+cat("Cross-validated MSE for Linear Regression:", lm_cv_mse, "\n")
+
+# Calculating the cross-validated Mean Squared Error for k-NN
+knn_cv_mse <- calculate_cv_mse(knn_model_cv, train_set_selected)
+cat("Cross-validated MSE for k-NN:", knn_cv_mse, "\n")
+```
+In the cross-validation results, the Linear Regression model showed a Root Mean Squared Error (RMSE) of 0.6659307, an R-squared value of 0.3508997, and a Mean Absolute Error (MAE) of 0.5151926. On the other hand, the k-Nearest Neighbors model with k=7 demonstrated an RMSE of 0.7481307, an R-squared value of 0.1893981, and an MAE of 0.5815820. Comparing the cross-validated Mean Squared Error (MSE) directly, the k-Nearest Neighbors model (MSE: 0.415836) outperformed the Linear Regression model (MSE: 0.437657). More specifically, the k-Nearest Neighbors model with k=7 offers a slightly better predictive performance. However, further tuning options may be beneficial for further tests. I will do model optimisation below.
+
+#5. Building a k-Nearest Neighbour model on the training set/model optimisation
+
+I will build model for each k=1, 2, 3, 4, and then select the best k value based on the performance the related model has on the validation set. I will call the resulting best model M5 (obtained for the best value of k).
+
+```{r}
+library(class)
+
+# I will define the knn_model as a global variable 
+knn_model <- NULL
+
+# Creating a function to train k-NN model and evaluate on validation set
+train_and_evaluate_knn <- function(train_set_selected, val_set_selected, k) {
+  # Extracting the independent variables from train_set
+  X_train <- train_set_selected[, c("volatile.acidity", "chlorides", "total.sulfur.dioxide", "pH", "sulphates", "alcohol")]
+  
+  # Extracting the dependent variable from train_set
+  y_train <- train_set_selected$quality
+  
+  # Extracting the independent variables from val_set
+  X_val <- val_set_selected[, c("volatile.acidity", "chlorides", "total.sulfur.dioxide", "pH", "sulphates", "alcohol")]
+  
+  # Extracting the dependent variable from val_set
+  y_val <- val_set_selected$quality
+  
+  # Training the k-NN model
+  global_knn_model <<- knn(train = X_train, test = X_val, cl = y_train, k = k)
+  
+  # Evaluating model performance on validation set
+  accuracy_val <- sum(global_knn_model == y_val) / length(y_val)
+  
+  return(accuracy_val)
+}
+
+# Defining the range of k values
+k_values <- c(1, 2, 3, 4)
+
+# Initializing variables to track the best model and its performance
+best_k <- NULL
+best_accuracy_val <- 0
+
+# Looping through each k value
+for (k in k_values) {
+  # Training and evaluating k-NN model for the current k value
+  accuracy_val <- train_and_evaluate_knn(train_set_selected, val_set_selected, k)
+  
+  # Updating the best model if the current one is better on the validation set
+  if (accuracy_val > best_accuracy_val) {
+    best_accuracy_val <- accuracy_val
+    best_k <- k
+  }
+}
+
+# Building the best k-NN model using the selected k on the entire training set
+M5 <- knn(train_set_selected[, c("volatile.acidity", "chlorides", "total.sulfur.dioxide", "pH", "sulphates", "alcohol")], 
+          test_set_selected[, c("volatile.acidity", "chlorides", "total.sulfur.dioxide", "pH", "sulphates", "alcohol")], 
+          train_set_selected$quality, k = best_k)
+
+# Displaying the best k value and corresponding validation set accuracy
+cat("Best k value:", best_k, "\n")
+cat("Validation set accuracy for best k:", best_accuracy_val, "\n")
+
+```
+
+In the code above, I performed a model optimization or parameter tuning for the k-Nearest Neighbors (k-NN) algorithm. The goal was to find the best value of the hyperparameter 'k' by training multiple k-NN models with different values of 'k' on the training set and evaluating their performance on the validation set. The loop was created to iterate through values of 'k' from 1 to 4, and for each iteration, a k-NN model was built using the 'knn' function from the 'class' library. The accuracy of each model is then calculated by comparing its predictions on the validation set to the actual values. The best 'k' is identified as the one that maximizes the accuracy on the validation set.
+
+Once the best 'k' is determined, I built the final k-NN model (M5) using the optimal 'k'. I stored the resulting model in the variable 'final_knn_model'. I then assigned it to the variable 'M5'. This variable can be used for further analysis or predictions, representing the k-NN model with the best-performing hyperparameter on the validation set. 
+
+#6. Using Validation set to rank models M1, M2, M3, ,M4 and M5.
+
+
+```{r}
+
+X_test <- test_set_selected[, c("volatile.acidity", "chlorides", "total.sulfur.dioxide", "pH", "sulphates", "alcohol")]
+y_test <- test_set_selected$quality
+
+# Converting y_test to numeric if it's a factor
+y_test <- as.numeric(as.character(y_test))
+
+# Evaluating the final models on the test set
+M1_test_mse <- mean((predict(M1, newdata = X_test) - y_test)^2)
+M2_test_mse <- mean((predict(M2, newdata = X_test) - y_test)^2)
+M3_test_mse <- mean((predict(M3, newdata = X_test) - y_test)^2)
+M4_test_mse <- mean((predict(M4, newdata = X_test) - y_test)^2)
+
+# Converting factor predictions from M5 to numeric
+M5_test_predictions <- as.numeric(as.character(knn_model))
+
+# Calculating the Test MSE for M5
+M5_test_mse <- mean((M5_test_predictions - y_test)^2)
+
+# I will print and store the test set performance
+print(paste("M1 Test MSE:", M1_test_mse))
+print(paste("M2 Test MSE:", M2_test_mse))
+print(paste("M3 Test MSE:", M3_test_mse))
+print(paste("M4 Test MSE:", M4_test_mse))
+print(paste("M5 Test MSE:", M5_test_mse))
+```
+The lower the Test MSE, the better the model's performance. In this case, the best model is M4. 
+```{r}
+# Best model
+Mb <- M4
+```
+
+#7.Evaluating performance of Mb on the test set.
+```{r}
+X_test <- test_set_selected[, c("volatile.acidity", "chlorides", "total.sulfur.dioxide", "pH", "sulphates", "alcohol")]
+y_test <- test_set_selected$quality
+
+# Converting y_test to numeric if it's a factor
+y_test <- as.numeric(as.character(y_test))
+
+# Predictions for Mb (M4)
+Mb_test_predictions <- predict(Mb, newdata = X_test)
+
+# Calculating the Test MSE for Mb
+Mb_test_mse <- mean((Mb_test_predictions - y_test)^2)
+
+# I will print and store the test set performance for Mb
+print(paste("Mb (M4) Test MSE:", Mb_test_mse))
+```
+The Test MSE for the model Mb (M4) on the test set is 0.340103809145201. This metric indicates that the model generalizes to new, unseen data. A lower Test MSE suggests better performance, so a value of 0.3401 is good.
+
+#Conclusion
+
+In conclusion, this regression-focused coursework aimed to address a comprehensive set of tasks, ranging from the initial understanding of the problem to the final evaluation of the selected models. The analysis began by formulating the regression problem. I selected the red wine dataset from the UCI open data repository. Through rigorous data splitting, exploration, and preprocessing, I gained valuable insights into the dataset's structure, effectively handling missing values and selecting relevant variables.
+
+The model building phase incuded the creation of a linear regression model (M1), followed by polynomial regression models (M2, M3, M4) and k-Nearest Neighbors models (M5) with optimal parameter selection. The validation set played a crucial role in ranking the models. This led to the identification of the best-performing model (Mb).
+
+The final evaluation on the test set provided a robust assessment of Mb's performance on unseen data, reflecting its potential for real-world applications. Throughout my analysis, I aimed to answer each question with analysis.
+
+Overall, my findings presented in this report contribute to a better understanding of the dataset and showcase the effectiveness of the chosen regression models in addressing the specified problem. my findings show that M4 was the best model due to its lower MSE value. 
