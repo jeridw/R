@@ -1,0 +1,651 @@
+
+#Introduction
+
+Credit card default prediction is an important task in the financial industry, helping institutions assess and manage potential risks associated with lending. In this coursework, I will delve into a credit risk assessment using a real-world credit risk dataset. The dataset provides information on various factors with the main goal of predicting whether a credit card holder will default on payment. The dataset is divided into a training dataset (creditdefault_train.csv) and a test dataset (creditdefault_test.csv). This analysis is not only an exploration into the performance of various classification algorithms but also an opportunity to understand the key factors influencing the credit card default. The ability to predict default accurately is crucial for financial institutions to make informed decisions and mitigate potential risks. I will be working and submitting on my own and will aim to address the challenges of model underfitting and overfitting.
+
+#Problem Formulation
+
+This document presents a detailed analysis of the credit default dataset with the aim of predicting credit card default based on 23 input variables. The response variable, denoted as Y, represents whether a credit card holder will default or not, with '1' indicating default and '0' denoting no default. The dataset includes information on key factors such as the amount of credit given, gender, education level, marital status, age, history of past payments, amount of bill statements, and previous payment amounts. Each variable contributes to a better understanding of the creditworthiness of an individual. This is helpful to financial institutions as accurately predicting a credit default will help with their decision making processes. For this project, I will employ machine learning models taught in class to develop a predictive framework that helps with risk mitigation by identifying potential default cases. 
+
+My analysis follows a structured approach, starting with the data exploration and preprocessing. I will split the training set into the training set (80%) and validation set (20%) for testing purposes. I will then follow this by constructing the Decision Tree, Bagging, Random Forest and Gradient Boosting models. Additionally, cross validation would be used to further test. The performance of each model will then be evaluated using the Accuracy, Precision, Recall and F1 score on both the training and validation sets. This was chosen rather than MSE since this is a classification problem and not a regression. This is binary classification as there is only two possible outcomes, non - default or default. I will then test the chosen model on the unseen data, which will be the test data set provided.
+
+My report will cover the following key steps:
+1. **Data Exploration and Preprocessing:** Checking for missing values, handling duplicates, and exploring the relationships between variables.
+2. **Model Building:** Constructing Decision Tree, Bagging, Random Forest and Gradient Boosting models.
+3. **Model Evaluation:** Comparing the performance of different models on the validation set using Accuracy, Precision, Recall and F1 score through a summary table.
+4. **Final Model Selection:** Choosing the best-performing model for further evaluation on the unseen data (test set).
+
+Throughout my analysis, I will provide visualizations and insightful commentary to give a clear understanding of the relationships between predictor variables and credit default. My document will then conclude with a comprehensive evaluation of the selected model on the test set.
+
+My analysis aims to provide valuable insights into the factors influencing credit default and to develop a predictive model for practical applications in the financial industry.
+
+## 1.1 Import and view Dataset
+```{r}
+#check working directory
+getwd()
+#import csv file for both training and test sets
+creditdefaulttrain <- read.csv("creditdefault_train.csv", header = TRUE) 
+creditdefaulttest <- read.csv("creditdefault_test.csv", header = TRUE) 
+# I would like to display the structure of the data
+str(creditdefaulttrain)
+#summary
+summary(creditdefaulttrain)
+# I will check for duplicates in the entire data frame
+duplicates <- creditdefaulttrain[duplicated(creditdefaulttrain), ]
+# I will now display the dimensions of the duplicates in the data
+dim(duplicates)
+```
+The dataset covers a variety of information about credit card users. Within the credit default dataset, there are 11 rows that display duplication. While the existence of duplicate rows has the potential to introduce biases in my analytical processes, it seems more likely in this case that various sources have assessed the creditworthiness of individuals and assigned comparable ratings across the evaluated variables. As a result, I have chosen to keep all observations.This could enrich my analysis with additional meaningful insights. Also, there does not seem to be any extremely high or low values in most categories. The credit amount (X1) and age (X5) have diverse ranges. The response variable (Y), indicating if a user defaulted (1) or not (0), shows potential imbalance, with a mean of 0.2212. This suggests more non-default cases. The dataset seems balanced for categorical variables like gender (X2), education (X3), and marital status (X4). Still, I need to check if there are extreme values in variables related to amounts (X12 to X23). Overall, the dataset looks good, but I will dig deeper into specific variables through EDA. 
+
+##1.2 Checking the missing values in Dataframes
+
+##Missing Values
+
+There are no missing values in the dataset, which is ideal for modeling as it simplifies the data preprocessing stage.
+
+```{r}
+# Check for missing values
+missing_values <- sum(is.na(creditdefaulttrain))
+print(missing_values)
+missing_values_test <- sum(is.na(creditdefaulttest))
+```
+
+# 1.3 EDA on training set
+
+## Loading libraries and checking training data.
+
+I will load the necessary libraries and examine the data summary. The dataset comprises of 24 variables and it’s possible that some of them are correlated. To explore this, I’ll assess the strength of the correlation between Y (credit default) and other variables by creating a correlation matrix plot.
+
+```{r}
+# I will load necessary libraries, including ggplot2 for plotting and corrplot for visualising the correlations. 
+library(ggplot2) 
+library(corrplot)
+
+# I will now look at the first few rows of the training data and test data 
+head(creditdefaulttrain)
+head(creditdefaulttest)
+
+# Computing the variable correlations 
+cor_matrix <- cor(creditdefaulttrain) 
+
+# I will now plot the correlation matrix 
+corrplot(cor_matrix, method = "circle", type = "upper", tl.col = "black")
+```
+
+### Correlation among variables Summary and insights based on the correlation matrix:
+
+In summary, the correlation matrix reveals associations between different variables in the dataset. The response variable (Y), indicating a credit card default, shows a negative correlation with the amount of credit (X1) and the repayment status in September (X6). On the other hand, it shows weaker positive correlations with gender (X2), education (X3), and age (X5). The amount of credit, X1, shows a negative correlation with both Y and X6 but positive correlations with bill statements and previous payments (X7 to X23). 
+
+## Distribution
+
+The aim of this analysis is to focus on the prediction of the credit card default. Y is what I aim to predict using other attributes. Now, I will look into a summary of the credit card default through creating a table and visualising it through a histogram. This will give an overview of the distribution of credit card defaults.
+
+```{r}
+#Creating a table for the counting of variables in Y
+table(creditdefaulttrain$Y)
+```
+
+Using the table() function showed that the majority of instances belong to the non-default category (0), with a count of 11,682. However, there are 3,318 instances of credit card default (1). This distribution provides a crucial insight into the dataset's and shows the higher amount of non-default cases. To gain a visual representation, I will create a histogram to illustrate the distribution of credit card default.
+
+```{r}
+#Histogram for distibution of credit card default
+theme_set(theme_minimal()) 
+ggplot(creditdefaulttrain,aes(Y)) + geom_histogram(stat="count") + xlab("Default Status (Y)") + ylab("Count")
+```
+
+## Further Visualisations
+
+###Histograms for Numerical Features and Bar Charts for Categorical Features
+
+I will create further histograms below to provide insights into the distribution of numerical features. This includes the amount of credit (X1), age (X5), amount of bill statement (X12 to X17), and amount of previous payment (X18 to X23). I will then create Bar Charts to provide insights on the categorical variables like gender (X2), education (X3), marital status (X4), and repayment status from April to September 2005 (X6 to X11).
+
+```{r}
+# First I will define numerical features
+numerical_features <- c('X1', 'X5', paste0('X', 12:23))
+
+# Then I will define categorical features
+categorical_features <- c('X2', 'X3', 'X4', paste0('X', 6:11))
+
+# Next I will define a function to plot histogram or bar chart based on feature type
+plot_feature <- function(data, feature, feature_type) {
+  if (feature_type == "numerical") {
+    p <- ggplot(data, aes(!!sym(feature))) +
+           geom_histogram(bins=15, fill="purple", color="black") +
+           labs(title=paste("Histogram of", feature), x=feature, y="Frequency") +
+           theme_minimal()
+  } else if (feature_type == "categorical") {
+    p <- ggplot(data, aes(!!sym(feature))) +
+           geom_bar(fill="orange", color="black") +
+           labs(title=paste("Bar Chart of", feature), x=feature, y="Count") +
+           theme_minimal()
+  }
+  print(p)
+}
+
+# Plotting the histograms for numerical features
+for (feature in numerical_features) {
+  plot_feature(creditdefaulttrain, feature, "numerical")
+}
+
+# Plotting the bar charts for categorical features
+for (feature in categorical_features) {
+  plot_feature(creditdefaulttrain, feature, "categorical")
+}
+```
+
+##Findings and Insights from the Histograms
+
+###Numerical Histograms
+
+X1 (Credit Amount): Shows a right-skewed distribution.This illustrates that a larger amount of individuals have lower credit amounts given, while less individuals have higher credit amounts given.This is expected as it is common for customers to be granted lower credit limits. 
+
+X5 (Age): Shows a slightly right-skewed distribution. This indicates that there are more middle aged customers and less older customers. It seems the most common age is within the 30s. 
+
+X12-17 (Bill Statement Amounts): Generally show a heavily right-skewed distribution. This suggests that more individuals have lower bill statement amounts, while a very small amount have higher bill amounts. Also, there are some customers with a bill amount of zero, suggesting that the bills have been fully paid or the credit has been unused.
+
+X18-23 (Previous Payment Amounts): Also shows a heavily right-skewed distribution. This implies that more customers are making minimum or partial payments towards their bill amounts. This could be a potential indicator for credit risk as customers may be struggling to pay off their credit balance.
+
+####Categorical Histograms
+
+X2 (Gender): Shows a gender imbalance with more female (2) customers in the credit card default dataset.
+
+X3 (Education): Shows the most common education level among customers was university (2). The second most common was graduate school (1) and the third was high school (3).
+
+X4 (Marital Status): Shows that single and married are the most common, while others were less common. There were more single (2) customers than married (1).
+
+X6-X11 (Repayment Status): Shows the tallest bar is 'pay duly' (0). Since there are less bars after 0 and more frequency of bars below 0, it suggests that only a few amount of customers have longer payment delays Payment history is usually a critical variable for predicting credit default risk.
+
+# 1.4 Preparing Data for Modelling through Data Split and Decision Trees
+
+Since I am working alone, I will be working on Decision Trees, Bagging, Random Forest and gradient Boosting. I will not do one-hot encoding and scaling as tree-based models can handle categorical features and numerical data differently. However, I will need to feature engineer my data to prepare it for the modelling. 
+
+I will first split the data into the training and validation set to train the models on the training set and then evaluate the model on the validation set. This is because I will be able to to see its performance the validation set and keep it unbiased. 
+
+##Data Preprocessing
+```{r}
+# Load the rpart package and .plot for better tree visualisation.
+library(caret)
+library(rpart)
+library(rpart.plot)
+
+# Setting the seed for reproducibility
+set.seed(123)
+
+# I will now split the data into training and validation sets. 80% will be for training and the rest will be for the validation set.
+
+splitindex <- createDataPartition(creditdefaulttrain$Y, p = 0.8, list = FALSE)
+train_set <- creditdefaulttrain[splitindex, ]
+val_set <- creditdefaulttrain[-splitindex, ]
+
+# I will now convert the target variable Y to a factor to enforce a classification context. Since Y is either 0 or 1, models like randomforest could mistakenly pick it up as a regression problem.
+
+train_set$Y <- factor(train_set$Y)
+val_set$Y <- factor(val_set$Y, levels = levels(train_set$Y))
+
+# Checking the unique values in the target variable
+
+unique(train_set$Y)
+unique(val_set$Y)
+
+#Confirming that the data type of target variable is an integer for modelling
+class(train_set$Y)
+```
+#2. Model Building
+
+##2.1 Decision Tree Model
+
+I will use Decision Trees to analyse the importance of each variable in predicting the the target variable Y. I will then use this information to select the variables that are the most predictive. To prevent overfitting I will use the cp parameter to control the size of the tree and tune it.
+
+
+```{r}
+# Fitting the decision tree with a smaller complexity parameter
+decision_tree_model <- rpart(Y ~ ., data = creditdefaulttrain, method = "class", cp = 0.001)
+
+# Plotting the decision tree using rpart.plot
+rpart.plot(decision_tree_model, main = "Decision Tree for Credit Default", extra = 100)
+
+# Fitting a simpler decision tree model with a higher cp value
+decision_tree_model_simpler <- rpart(Y ~ ., data = creditdefaulttrain, method = "class", cp = 0.01)
+
+# Plotting the simpler tree
+rpart.plot(decision_tree_model_simpler, main = "Simplified Decision Tree for Credit Default", extra = 100)
+
+# Printing a summary of the decision tree model
+summary(decision_tree_model)
+
+# Predicting it on the training set
+train_pred <- predict(decision_tree_model, newdata = creditdefaulttrain, type = "class")
+
+# Calculating the accuracy
+accuracy <- sum(train_pred == creditdefaulttrain$Y) / nrow(creditdefaulttrain)
+print(paste("Accuracy on training set:", accuracy))
+
+# Getting the variable importance
+importance <- decision_tree_model$variable.importance
+print(importance)
+
+# Saving the decision tree plot as a PNG file to see easier.
+png("decision_tree.png", width = 1200, height = 800)
+rpart.plot(decision_tree_model, main = "Decision Tree for Credit Default", extra = 100)
+dev.off()
+```
+###Findings from the Decision Trees on the Training Data
+
+Simplified Decision Tree: More individuals (90%) who have X6 < 2, which means payment delay for less than 2 months in September, did not default (0).Therefore this suggests that historically when a customer pays in less than 2 months, they are very likely to pay on time. However, only 10% of individuals who delayed payments of 2 months or more, X6>=2, defaulted (1). This implies that while late payment is a strong indicator of default, not all customers who are late with payment will necessarily default.
+
+Full Decision Tree: According to class, the nodes at the top near the root are generally the most significant as they are are often the most important in predicting the variable. At the top, the root node, also starts with X6. This suggests that the repayment status in September is a very important predictor. This then splits into X7, indicating again that history repayments is critical in predicting defaults. It also splits into X12, which represents bill amounts, suggesting that the recent financial activity of an individual is a predictive factor for default risk. Other variables, such as X5 (Age) is used for split points, which also suggests that it is predictive.
+
+Accuracy on training set: 0.838
+
+###Evaluating the Decision Tree Model on the validation data set
+
+```{r}
+# Predicting on the validation set
+validationPred_DT <- predict(decision_tree_model, newdata = val_set, type = "class")
+
+# Calculating the accuracy on the validation set
+accuracy_DT <- sum(validationPred_DT == val_set$Y) / nrow(val_set)
+
+# Calculating the confusion matrix
+conf_matrix_DT <- confusionMatrix(validationPred_DT, val_set$Y)
+
+# Calculating the precision for class 1
+precision_DT <- conf_matrix_DT$byClass["Pos Pred Value"]
+
+# Calculating the recall for class 1
+recall_DT <- conf_matrix_DT$byClass["Sensitivity"]
+
+# Calculating the F1 Score for class 1
+f1_score_DT <- 2 * (precision_DT * recall_DT) / (precision_DT + recall_DT)
+
+# Printing the metric results
+print(paste("Accuracy (Decision Tree):", accuracy_DT))
+print(paste("Precision (Decision Tree):", precision_DT))
+print(paste("Recall (Decision Tree):", recall_DT))
+print(paste("F1 Score (Decision Tree):", f1_score_DT))
+```
+
+The analysis of the Decision Tree model for credit default prediction shows a high level of accuracy, with an 83.8% success rate on the training set and a similar 83.7% on the validation set. This consistency between training and validation sets suggests that the model is reliable and generalises well to new data. In addition, the model's performance has a precision of 84.43%. This means that when the model predicts a default, it is correct approximately 84.43% of the time. Furthermore, the model shows a great recall or sensitivity of 96.67%. This suggests that it correctly identifies nearly 96.67% of all actual defaults. The F1 Score, which balances precision and recall, is also very high at 0.9014. This high score suggests that the model is efficient and  accurately predicts defaults while maintaining a balanced approach to false positives and negatives. 
+
+###2.1 Bagging Model
+
+This model uses bagging (bootstrap aggregating) to train multiple decision trees on different subsets of the training data and then it averages their predictions.
+```{r}
+# Loading the library for randomForest
+library(randomForest)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Training the bagging model using randomForest with all features. I will set mtry in randomForest to the number of features used in the model. This will result in bagging
+baggingModel <- randomForest(Y ~ ., data = train_set, mtry = ncol(train_set) - 1, ntree = 500, importance = TRUE)
+
+# I will also look at the importance of each variable
+importance(baggingModel)
+
+# Predicting on the training set
+trainingPred <- predict(baggingModel, newdata = train_set, type = "class")
+
+# Calculating the accuracy on the training set
+trainingAccuracy <- sum(trainingPred == train_set$Y) / nrow(train_set)
+print(paste("Accuracy on training set:", trainingAccuracy))
+
+# Confusion matrix on the training set
+conf_matrix_train <- confusionMatrix(trainingPred, train_set$Y)
+print(conf_matrix_train)
+```
+I constructed 500 trees and utilised all the available variables in the data set to ensure that it was a comprehensive analysis. i assessed the variable importance in this model to see what feature significantly contributes to the predictions. I measured this in terms of Mean Decrease in Accuracy and Mean Decrease Gini and identified that variables such as X6, X7, X5, X15, and X14 as particularly influential in the model's decision-making process. This is similar to the decision tree model variables that were influential.
+
+###Visualising the variable importance of the bagging model 
+
+```{r}
+library(ggplot2)
+library(randomForest)
+
+# Getting the variable importance
+importance_data <- importance(baggingModel)
+feature_names <- row.names(importance_data)
+importance_df <- data.frame(Feature = feature_names, MeanDecreaseGini = importance_data[, "MeanDecreaseGini"])
+
+# I will order the data frame by MeanDecreaseGini
+importance_df <- importance_df[order(importance_df$MeanDecreaseGini, decreasing = TRUE), ]
+
+# Creating the plot
+ggplot(importance_df, aes(x = reorder(Feature, MeanDecreaseGini), y = MeanDecreaseGini)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +  # I used this to flip the axes to get a horizontal bar plot for better visuals.
+  labs(x = "Variable", y = "Mean Decrease Gini", title = "Variable Importance in Bagging Model") +
+  theme_minimal()  
+```
+###Findings from the Bagging Model on the Training Data
+
+The model achieved great accuracy on the training set, with a success rate of 99.975%. This high level of accuracy suggests a strong fit to the training data. The accompanying confusion matrix further highlights the model's predictive strength, showing 9371 true negatives and 2626 true positives, with only 3 instances of false negatives. This translates to a sensitivity rate of 100% and a specificity rate of 99.89%, indicating the model's adeptness in accurately identifying both positive (default) and negative (non-default) cases.The model's agreement between predicted and actual classifications is quantified by a Kappa statistic of 0.9993. This suggests a good level of agreement, which is above what might occur by chance. Additionally, the Mcnemar's Test, with a P-Value of 0.2482, suggests no significant bias in the model's error rate between the two classes.
+
+Despite the models great performance on the training set, it is very important to further evaluate this on a validation. This will show whether the model is overfitting, especially if the accuracy is near perfect, like in this instance. Overfitting usually occurs when the model is excessively tuned to the specific patterns and noise of the training data. This potentially compromises the effectiveness on new, unseen data.
+
+###Evaluating the Bagging Model on the validation data set
+
+```{r}
+
+# Predicting on the validation set using the bagging model
+validationPred <- predict(baggingModel, newdata = val_set, type = "class")
+
+# Calculating the accuracy on the validation set
+accuracy_Bagging <- sum(validationPred == val_set$Y) / nrow(val_set)
+
+# Calculating the confusion matrix
+conf_matrix_Bagging <- confusionMatrix(validationPred, val_set$Y)
+
+# Calculating the precision for class 1
+precision_Bagging <- conf_matrix_Bagging$byClass["Pos Pred Value"]
+
+# Calculating the recall for class 1
+recall_Bagging <- conf_matrix_Bagging$byClass["Sensitivity"]
+
+# Calculate F1 Score for class 1
+f1_score_Bagging <- 2 * (precision_Bagging * recall_Bagging) / (precision_Bagging + recall_Bagging)
+
+# Printing the metrics
+print(paste("Accuracy (Bagging Model):", accuracy_Bagging))
+print(paste("Precision (Bagging Model):", precision_Bagging))
+print(paste("Recall (Bagging Model):", recall_Bagging))
+print(paste("F1 Score (Bagging Model):", f1_score_Bagging))
+```
+When the Bagging Model was applied on the validation set, the models accuracy dropped to 81.33%. This suggests that while the model is still performing well, it did not capture the validation data as effectively as the training data. This is a common indicator of overfitting. The Recall for defaults is also very high at 93.94%, which suggests that the model is very effective at identifying most of the actual default cases in the validation set. It means that the model can catch a large majority of potential defaults, which is crucial for financial institutions since undetected defaults can lead to significant financial losses. Furthermore, the F1 score is 88.58% which is very good. Additionally, the model's precision is good, which means that defaulting customers are more likely to be classed correctly, which mitigates any potential risks and losses of the business.
+
+However, it is important to note that the drop in accuracy from the training to the validation set indicates that the model may be overfitted to the training data and might not generalize as well to new, unseen data. Even though the model seems powerful in detecting defaults, it is important to monitor how the model performs in a real-world scenario and continue to adjust and validate the model with new data.
+
+#Random Forest
+
+```{r}
+# No need to load random forest as it was previoudly loaded for bagging.
+
+# Setting the seed for reproducibility
+set.seed(123)
+
+# Training the Random Forest model
+randomForestModel <- randomForest(Y ~ ., data = train_set, mtry = sqrt(ncol(train_set) - 1), ntree = 500)
+
+# Summarising the model
+print(randomForestModel)
+
+# Predicting on the training set
+trainingPredictions <- predict(randomForestModel, newdata = train_set)
+
+# Calculating the accuracy on the training set
+trainingAccuracy <- sum(trainingPredictions == train_set$Y) / nrow(train_set)
+cat("Accuracy on training set:", trainingAccuracy, "\n")
+
+# Confusion matrix on the training set
+confusionMatrixTrain <- table(Predicted = trainingPredictions, Actual = train_set$Y)
+print(confusionMatrixTrain)
+```
+
+###Visualising the Random Forest Model on the variable importance
+
+```{r}
+
+# Getting the variable importance
+importance_data_rf <- importance(randomForestModel)
+feature_names_rf <- row.names(importance_data_rf)
+importance_df_rf <- data.frame(Feature = feature_names, MeanDecreaseGini = importance_data_rf[, "MeanDecreaseGini"])
+
+# Ordering the data frame for random forest (rf) by MeanDecreaseGini
+importance_df_rf <- importance_df_rf[order(importance_df_rf$MeanDecreaseGini, decreasing = TRUE), ]
+
+# Create the plot using ggplot2
+ggplot(importance_df_rf, aes(x = reorder(Feature, MeanDecreaseGini), y = MeanDecreaseGini)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +  # Make the bar plot horizontal
+  labs(title = "Variable Importance in Random Forest Model", x = "Mean Decrease Gini", y = "") +
+  theme_minimal()  # Use a minimal theme for a cleaner look
+```
+
+###Evaluating the Random Forest Model on the validation data set
+
+```{r}
+
+# Predict on the validation set using the bagging model
+validationPredictions <- predict(randomForestModel, newdata = val_set)
+
+# Calculate accuracy on the validation set
+accuracy_RF <- sum(validationPredictions == val_set$Y) / nrow(val_set)
+
+# Calculate confusion matrix
+conf_matrix_RF <- confusionMatrix(validationPredictions, val_set$Y)
+
+# Calculate precision for class 1
+precision_RF <- conf_matrix_RF$byClass["Pos Pred Value"]
+
+# Calculate recall for class 1
+recall_RF <- conf_matrix_RF$byClass["Sensitivity"]
+
+# Calculate F1 Score for class 1
+f1_score_RF <- 2 * (precision_RF * recall_RF) / (precision_RF + recall_RF)
+
+# Print metrics
+cat("Accuracy (Random Forest):", accuracy_RF, "\n")
+cat("Precision (Random Forest):", precision_RF, "\n")
+cat("Recall (Random Forest):", recall_RF, "\n")
+cat("F1 Score (Random Forest):", f1_score_RF, "\n")
+
+```
+###Findings from the Random Forest Model on the Training Data and validation Data
+
+The Random Forest Model was trained with 500 trees and I ensured that it considered all the variables, exluding Y at each split. The model achieved an extremely high accuracy of 99.6% on the training set. This indicates that it was able to correctly predict the default status for nearly all of the training instances. The Out-Of-Bag (OOB) error estimate is 18.06%, which is a measure of prediction error for the trees in the forest when they are not using the bootstrapped sample. However, it is important to note that there is significant difference between OOB error and training accuracy, which could suggest the model is overfitting. The confusion matrix on the training set also shows that the model predicted the majority of non-defaults (class 0) and defaults (class 1) correctly with only 48 instances of class 0 being incorrectly classified as class 1. There were 2 instances of class 1 being incorrectly classified as class 0.
+
+The recall for class 1 on the validation set is 94.20%. This means the model correctly identifies 94.2% of all actual defaults. This is important for credit default prediction as failing to detect defaults could be costly. The F1 score also seems good. 
+
+However, just like the Bagging model, the model is very accurate on the training set but shows signs of overfitting as it is reduced on the validation set. Again the model has a high recall, but the drop in performance from the training to the validation set suggests that there needs to be a careful evaluation of the model and a consideration of techniques, such as further tuning  to reduce overfitting.
+
+#Gradient Boosting
+
+I installed the new gbm 3 package instead of using the library gbm as it fixes bugs and is an improved version.
+```{r}
+#install.packages("devtools")
+#library("devtools") 
+#install_github("gbm-developers/gbm3")
+#install_github("gbm-developers/gbm3", force = TRUE)
+```
+Next I will run the model.
+```{r}
+# Loading the libraries for this model
+library(gbm3)
+library(dplyr)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Training the Gradient Boosting model
+gbm_model <- gbm(Y ~ ., data = train_set, distribution = "bernoulli",
+                 n.trees = 500, interaction.depth = 3, shrinkage = 0.1, cv.folds = 5)
+
+# Summarize the model
+print(gbm_model)
+
+# Specifying the number of trees for prediction 
+n_trees <- 500
+
+# Preparing the training set
+train_x <- train_set[, -1]
+train_y <- train_set$Y
+
+# Predicting this on the training data
+train_predictions <- predict(gbm_model, newdata = train_x, n.trees = n_trees, type = "response")
+train_predictions_binary <- ifelse(train_predictions > 0.5, 1, 0)
+train_predictions_binary <- factor(train_predictions_binary, levels = levels(train_y))
+
+# Calculating the Accuracy for  training sets
+train_accuracy <- sum(train_predictions_binary == train_y) / length(train_y)
+print(paste("Accuracy on training set:", train_accuracy))
+
+# Calculating Precision and Recall for training sets
+conf_matrix_train <- confusionMatrix(train_predictions_binary, train_y)
+precision_train <- conf_matrix_train$byClass["Pos Pred Value"]
+recall_train <- conf_matrix_train$byClass["Sensitivity"]
+print(paste("Precision on training set:", precision_train))
+print(paste("Recall on training set:", recall_train))
+```
+
+###Visualising gradient boost
+
+```{r}
+# Fitting the Gradient Boosting model
+gbm_model <- gbm(Y ~ ., data = train_set, distribution = "bernoulli",
+                 n.trees = 500, interaction.depth = 3, shrinkage = 0.1, cv.folds = 5)
+
+# Plotting the relative influence of variables on the graph
+summary(gbm_model, plot = TRUE)
+
+
+```
+
+###Evaluating the Gradient Boosting Model on the validation data set
+
+```{r}
+
+# Prepare the validation set
+val_x <- val_set[, -1]  # Exclude the target variable
+val_y <- val_set$Y      # Target variable
+
+# Predict on the validation data with the specified number of trees
+val_predictions <- predict(gbm_model, newdata = val_x, n.trees = n_trees, type = "response")
+
+# Converting the probabilities to binary class labels based on a threshold (e.g., 0.5)
+val_predictions_binary <- ifelse(val_predictions > 0.5, 1, 0)
+
+# Converting the val_predictions_binary to a factor with the same levels as val_y
+val_predictions_binary <- factor(val_predictions_binary, levels = levels(val_y))
+
+# Calculate accuracy on the validation set
+accuracy_GB <- sum(val_predictions_binary == val_y) / length(val_y)
+
+# Calculate confusion matrix
+conf_matrix_GB <- confusionMatrix(val_predictions_binary, val_y)
+
+# Calculate precision for class 1
+precision_GB <- conf_matrix_GB$byClass["Pos Pred Value"]
+
+# Calculate recall for class 1
+recall_GB <- conf_matrix_GB$byClass["Sensitivity"]
+
+# Calculate F1 Score for class 1
+f1_score_GB <- 2 * (precision_GB * recall_GB) / (precision_GB + recall_GB)
+
+# Print metrics
+print(paste("Accuracy (Gradient Boosting):", accuracy_GB))
+print(paste("Precision (Gradient Boosting):", precision_GB))
+print(paste("Recall (Gradient Boosting):", recall_GB))
+print(paste("F1 Score (Gradient Boosting):", f1_score_GB))
+```
+
+###Findings from the Gradient Boosting Model on the Training Data and validation Data
+
+For the training data, the GBM model was trained with 500 decision trees, with each tree having a maximum depth of 3. It also employed a Bernoulli loss function, which is suitable for binary outcomes. The model's training process included cross-validation with 5 folds to see the model's performance and mitigate overfitting. The optimal number of trees identified during this process was 136. This suggested that adding more trees beyond this point did not contribute to improving the model's ability to generalize. The model's accuracy on the training set was approximately 84.18%. The precision of the model, which reflects its ability to predict true positives out of all positive predictions, stood at about 85.47%. This indicates that when the model forecasted a default event, it was accurate around 85% of the time. Moreover, the model showed a high recall of 96.08% on the training set. Again, this is important for identifying the majority of actual defaults.
+In terms of the cross-validation performed during the training phase, the confusion matrix revealed a predictive accuracy of 82.17%, which provides indicates that the model is able to generalize across different subsets of the data.
+
+For the validation set, the accuracy dropped very slightly to 82.17%. A slight reduction is generally anticipated as models do tend to drop in accuracy with new unseen data. The precision, recall and F1 score was also good, suggesting that the model was able to identify defaults. The high recall and F1 Score shows that the model is effective for predicting credit default. However, since there is a slight discrepancy between the training and cross-validation accuracy, it suggests that the model could be enhanced through further hyperparameter optimisation. Nevertheless, this model seemed to be an improvement from the Bagging and Random Forest Model.
+
+#3.Model Selection
+
+Since I have now evaluated all the models, I will select the one that best performs. To do this, I will create a summary table that includes the evaluation metrics for each model. This table will allow me to compare the models side by side. 
+
+```{r}
+# Creating a data frame to hold the evaluation metrics for each model
+model_comparison <- data.frame(
+  Model = c("Decision Tree", "Bagging", "Random Forest", "Gradient Boosting"),
+  Accuracy = c(0.837, 0.8133, 0.815, 0.8167),
+  Precision = c(0.8443, 0.8379, 0.8380, 0.8377),
+  Recall = c(0.9667, 0.9394, 0.9420, 0.9450),
+  F1_Score = c(0.9014, 0.8858, 0.8869, 0.8882)
+)
+
+# Printing the summary table for comparison
+print(model_comparison)
+```
+
+##3.1 Visualisation of the summary table for all the models
+
+```{r}
+# Reshape the data for plotting
+long_model_comparison <- reshape2::melt(model_comparison, id.vars = "Model")
+
+# Plot
+ggplot(long_model_comparison, aes(x = Model, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  labs(y = "Score", x = "Model", title = "Model Evaluation Metrics Comparison") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_brewer(palette = "Set1") +
+  guides(fill = guide_legend(title = "Metric"))
+
+```
+
+From the above,I can see the Decision Tree model performs the best. However, I would like to further test this through cross validation.
+
+##4. Final Model Selection
+
+##4.1 Cross Validation
+
+I will perform a 10-fold cross-validation across multiple models with default settings. I will use the train function from the caret package to be able to conduct a consistent and comparable cross-validation across all the models.
+
+```{r}
+# Set seed for reproducibility
+set.seed(123)
+
+# Define control parameters for the 10-fold cross-validation
+control <- trainControl(method = "cv", number = 10)
+
+# Decision Tree with cross-validation
+model_dt_cv <- train(Y ~ ., data = creditdefaulttrain, method = "rpart", 
+                     trControl = control, tuneLength = 10)
+print(model_dt_cv)
+
+# Random Forest with Bagging and cross-validation
+model_bagging_cv <- train(Y ~ ., data = creditdefaulttrain, method = "rf", 
+                          trControl = control, tuneLength = 10)
+print(model_bagging_cv)
+
+# Gradient Boosting Machine with cross-validation
+model_gb_cv <- train(Y ~ ., data = creditdefaulttrain, method = "gbm", 
+                     trControl = control, tuneLength = 10, verbose = FALSE)
+print(model_gb_cv)
+```
+From my results, it seems that the Decision Tree may be the best choice. Firstly, it has the highest recall, which means that it minimises missed defaults (false negatives). Secondly, it also leads with the precision and F1 score. Although, Gradient Boosting model slightly leads, in terms of accuracy, it is not as important as the recall score for predicting credit default as it could still have a higher amount false negatives. This can be critical as missing a default could could lead to significant financial losses, making recall more important for predicting default than overall accuracy. 
+
+#4.1 Testing the Model on the Unseen Test Set Data
+
+After evaluating the models, I will test how well it generalizes to the unseen data. In this case I will validate it on the separate test set to assess it performance on the unseen data.
+
+```{r}
+# First I will ensure that the target variable 'Y' is in the correct format, factor.
+creditdefaulttest$Y <- as.factor(creditdefaulttest$Y)
+
+# Next I will use the trained Decision Tree model to predict on the test dataset
+test_pred <- predict(decision_tree_model, newdata = creditdefaulttest, type = "class")
+
+# Calculate accuracy, precision, recall, and F1 score
+conf_matrix_test <- confusionMatrix(test_pred, creditdefaulttest$Y)
+accuracy_test <- sum(test_pred == creditdefaulttest$Y) / nrow(creditdefaulttest)
+precision_test <- conf_matrix_test$byClass["Pos Pred Value"]
+recall_test <- conf_matrix_test$byClass["Sensitivity"]
+f1_score_test <- 2 * (precision_test * recall_test) / (precision_test + recall_test)
+
+# Print the metrics
+print(paste("Accuracy on test set:", accuracy_test))
+print(paste("Precision on test set:", precision_test))
+print(paste("Recall on test set:", recall_test))
+print(paste("F1 Score on test set:", f1_score_test))
+```
+
+The Decision Tree model applied to the test dataset for predicting credit card defaults has achieved an accuracy of 81.41%, indicating its ability to correctly predict credit defaults in a large amount of cases. Furthermore the Precision was 83.61%. This high precision rate is important, particularly in financial industries, as it implies a lower rate of false positives—cases where a default is predicted incorrectly.More importantly, the model does really well in recall rate, with a high rate of 94.69%. Recall measures the model's ability to identify actual defaults, and a high recall rate is important in credit default prediction. This is because the consequences of failing to identify a default (a false negative) can be have greater impact than incorrectly predicting a default. Therefore, the high recall shows that the model is highly effective in identifying most of the true default cases. In addition, The F1 Score, which balances precision and recall, is 88.81%. This suggests that there is a strong overall performance of the model. The model is not only good at identifying defaults accurately but does so with a great rate of correctly identifying non-default cases as well. The Decision Tree model shows a reliable performance in predicting credit card defaults, making it a valuable tool in the financial industry where accurately identifying potential defaults is very important.
+
+#Conclusion
+
+In conclusion, classification-focused coursework aimed to address a comprehensive set of tasks, ranging from the initial understanding of the problem to the final evaluation of the selected model. The analysis began by formulating the classification problem. The aim was to predict credit card default and gain meaningful insights from the provided credit default data set. Through rigorous data splitting, exploration, and preprocessing, I gained valuable insights into the dataset's structure, effectively handling missing values and selecting relevant variables.
+
+The model building phase included the creation of of the Decision Tree Model, followed by Bagging, Random Forest, Gradient Boosting and cross-validation for the optimal model selection. The validation set played a crucial role in comparing the models. This was important as it provided a better understanding of the trade-offs between the the different types of models and the ability to generalise. This led to the identification of the best-performing model. 
+
+The final evaluation on the test set provided a robust assessment of the selected models performance on unseen data, reflecting its potential for real-world applications. Throughout my analysis, I aimed to consider whether the model overfitted and what variables significantly contributed to predicting credit card default. The analysis generally showed that the variables X6-X11, history of past payments, was very significant in predicting credit card default. Furthermore, demographic factors, such as age and education also significantly influenced credit card default. 
+
+Overall, my findings presented in this report contribute to a better understanding of the dataset and showcase the effectiveness of  models in addressing the specified problem. My findings show that Decision Tree was the best model due to the highest recall rate. 
